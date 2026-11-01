@@ -1,0 +1,108 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>p5 슬라이더로 LED 밝기 조절 | 고동현</title><meta name="description" content="Arduino Uno D13 소프트웨어 PWM과 p5.js 슬라이더를 활용한 LED 밝기 조절 실습"><style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f6f5f1;color:#252c28;font:16px/1.8 system-ui,sans-serif}main{max-width:1050px;margin:auto;padding:36px 24px}header{padding:40px 0 48px}header small{letter-spacing:3px;color:#99613a}h1{font-size:clamp(34px,5.5vw,58px);line-height:1.2;letter-spacing:-2px;margin:20px 0}header p{max-width:720px}a{color:#80512c}.btn,button{display:inline-block;border:0;border-radius:8px;background:#80512c;color:white;padding:10px 16px;text-decoration:none;font:inherit;cursor:pointer;margin:5px 8px 5px 0}.light{background:#eae4d9;color:#573b23}nav{display:flex;gap:20px;flex-wrap:wrap;padding:20px 0}section{background:white;border:1px solid #e5e2d9;border-radius:16px;padding:28px;margin-bottom:22px;scroll-margin-top:20px}h2{font-size:25px;line-height:1.5;letter-spacing:-.5px;margin-top:0}h3{font-size:19px}img,video{width:100%;height:auto;display:block;border-radius:9px}video{max-height:600px;background:#232821}figure{margin:0}figcaption,.muted{font-size:14px;color:#6c746d}figcaption{padding:9px 0 15px}.photos{display:grid;grid-template-columns:1fr 1fr;gap:16px}table{border-collapse:collapse;width:100%}th,td{padding:10px;text-align:left;border-bottom:1px solid #e7e7df}pre{max-height:560px;overflow:auto;background:#202922;color:#e3eee1;border-radius:10px;padding:20px;font:13px/1.7 monospace}summary{cursor:pointer;font-weight:600;padding:12px 0}.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.facts div{padding:20px;background:#f3f1e9;border-radius:10px}.facts strong{font-size:25px;display:block}.facts span{font-size:13px}footer{padding:16px;color:#6c746d;font-size:14px}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}@media(max-width:650px){main{padding:20px 14px}section{padding:20px}.photos,.facts{grid-template-columns:1fr}header{padding:20px 4px}nav{gap:14px}}</style></head><body><main><header><small>ARDUINO UNO · P5.JS · D13</small><h1>슬라이더 하나로<br>LED 밝기 조절하기</h1><p>p5.js 슬라이더로 0~255 값을 보내고, Arduino Uno의 D13에 연결한 LED 밝기를 조절하는 프로젝트다.</p><p class="muted">고동현 · 창의설계입문 · 2026.11.01</p><a class="btn" href="#demo">시연 영상 보기</a><a class="btn light" href="#code">전체 코드</a><a href="https://github.com/GODONGYEN/p5-led-slider">GitHub 저장소 ↗</a></header>
+<nav aria-label="목차"><a href="#wiring">연결도</a><a href="#demo">시연 기록</a><a href="#how">동작 원리</a><a href="#code">코드</a><a href="#review">고찰</a></nav>
+<section id="wiring"><h2>01. 준비물과 연결도</h2><p>Arduino Uno, LED, 전류 제한 저항(220~330Ω), 브레드보드, 점퍼선, USB 케이블을 사용한다.</p><figure><img src="assets/wiring.png" alt="Arduino Uno D13과 저항, LED, GND를 연결한 Fritzing 배선도"><figcaption>제공된 Fritzing 연결도. 그림의 전원 레일은 GND에 연결되어 있다.</figcaption></figure><table><thead><tr><th>연결 위치</th><th>연결 대상</th></tr></thead><tbody><tr><td>Uno D13</td><td>저항 → LED 긴 다리(+)</td></tr><tr><td>LED 짧은 다리(−)</td><td>GND 레일 → Uno GND</td></tr><tr><td>Uno USB</td><td>컴퓨터 USB 포트</td></tr></tbody></table><p class="muted">D13은 LED 출력 핀 번호다. 브라우저에서 고르는 USB 시리얼 포트와는 다르다. 5V에 LED를 직접 연결하면 슬라이더로 제어할 수 없다.</p></section>
+<section id="demo"><h2>02. 시연 영상과 사진</h2><video controls playsinline preload="metadata" poster="assets/demo.jpg"><source src="assets/demo.mp4" type="video/mp4"></video><p><a href="assets/demo.mp4" download>시연 영상 다운로드</a></p><p class="muted">제공된 IMG_7768.mov를 웹 재생용 MP4로 변환했다. 아래 사진은 같은 영상에서 추출한 장면이다.</p><div class="photos"><figure><img loading="lazy" src="assets/demo-1.jpg" alt="실물 LED 밝기 조절 시연 장면 1"><figcaption>실물 시연 장면 1</figcaption></figure><figure><img loading="lazy" src="assets/demo-2.jpg" alt="실물 LED 밝기 조절 시연 장면 2"><figcaption>실물 시연 장면 2</figcaption></figure></div></section>
+<section id="how"><h2>03. 동작 원리</h2><ol><li>p5.js의 <code>createSlider(0, 255, 0, 1)</code>로 밝기 값을 정한다.</li><li>Web Serial로 50ms마다 밝기 값을 1바이트로 전송한다. 통신 속도는 115200 baud다.</li><li>아두이노는 <code>Serial.read()</code>로 값을 읽고 D13의 켜짐 시간을 바꾼다.</li><li>약 2040μs 주기로 소프트웨어 PWM을 만든다. 0은 꺼짐, 255는 계속 켜짐이다.</li><li>수신이 2초 이상 끊기면 LED를 끈다.</li></ol><p>Uno의 D13은 하드웨어 PWM 핀이 아니므로 <code>analogWrite(13, v)</code> 대신 <code>micros()</code>와 <code>digitalWrite()</code>를 사용했다. 소프트웨어 방식이므로 코드 실행 시간에 따라 파형에 작은 흔들림이 생길 수 있다.</p><p>p5 화면의 원은 선택한 밝기를 미리 보여준다. 실제 LED 밝기를 측정하는 센서는 아니다.</p></section>
+<section id="code"><h2>04. 전체 코드</h2><p>변수명은 짧게 두고 주석 없이 정리했다. 아래 두 코드는 서로 다른 곳에 넣는다.</p><h3>아두이노 IDE · LedSlider.ino</h3><p>추가 라이브러리 없이 Uno에 업로드한다.</p><a class="btn light" href="LedSlider/LedSlider.ino" download>INO 다운로드</a><button type="button" data-copy="ino">아두이노 코드 복사</button><details open><summary>아두이노 코드 보기</summary><pre><code id="ino">const byte led = 13;
+byte v = 0;
+unsigned long t = 0;
+unsigned long rx = 0;
+
+void setup() {
+  pinMode(led, OUTPUT);
+  Serial.begin(115200);
+}
+
+void loop() {
+  if (Serial.available()) {
+    v = Serial.read();
+    rx = millis();
+    Serial.write(v);
+  }
+  if (millis() - rx &gt; 2000) v = 0;
+
+  unsigned long el = micros() - t;
+  if (el &gt;= 2040) {
+    t += (el / 2040) * 2040;
+    el %= 2040;
+  }
+  digitalWrite(led, v == 255 || el &lt; v * 8UL);
+}
+</code></pre></details><h3>p5.js 웹 에디터 · sketch.js</h3><p>웹 에디터의 <code>sketch.js</code> 내용을 아래 코드로 교체한다. 별도 HTML 요소를 만들 필요는 없다.</p><a class="btn light" href="p5/sketch.js" download>JS 다운로드</a><button type="button" data-copy="p5">p5 코드 복사</button><details><summary>p5.js 코드 보기</summary><pre><code id="p5">let s, btn, msg;
+let port, w;
+let busy = false;
+let t = 0;
+
+function setup() {
+  createCanvas(400, 250);
+  s = createSlider(0, 255, 0, 1);
+  s.position(30, 170);
+  s.style(&#x27;width&#x27;, &#x27;340px&#x27;);
+  btn = createButton(&#x27;아두이노 연결&#x27;);
+  btn.position(30, 210);
+  btn.mousePressed(con);
+  msg = createP(&#x27;연결 전&#x27;);
+  msg.position(160, 195);
+}
+
+function draw() {
+  background(240);
+  let v = s.value();
+  noStroke();
+  fill(60 + v * 0.76, 60 + v * 0.55, 40);
+  circle(200, 75, 90);
+  fill(30);
+  textAlign(CENTER);
+  textSize(20);
+  text(&#x27;밝기: &#x27; + v, 200, 145);
+  if (w &amp;&amp; !busy &amp;&amp; millis() - t &gt;= 50) {
+    t = millis();
+    send(v);
+  }
+}
+
+async function con() {
+  if (!(&#x27;serial&#x27; in navigator)) {
+    msg.html(&#x27;Chrome 또는 Edge에서 실행하세요.&#x27;);
+    return;
+  }
+  btn.attribute(&#x27;disabled&#x27;, &#x27;&#x27;);
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    msg.html(&#x27;보드 시작 중...&#x27;);
+    await new Promise(r =&gt; setTimeout(r, 1600));
+    w = port.writable.getWriter();
+    msg.html(&#x27;연결됨&#x27;);
+  } catch (e) {
+    if (port) {
+      try {
+        await port.close();
+      } catch (err) {}
+    }
+    port = null;
+    msg.html(&#x27;연결 실패. 포트와 시리얼 모니터를 확인하세요.&#x27;);
+    btn.removeAttribute(&#x27;disabled&#x27;);
+  }
+}
+
+async function send(v) {
+  busy = true;
+  try {
+    await w.write(new Uint8Array([v]));
+  } catch (e) {
+    try {
+      w.releaseLock();
+      await port.close();
+    } catch (err) {}
+    w = null;
+    port = null;
+    msg.html(&#x27;연결 끊김&#x27;);
+    btn.removeAttribute(&#x27;disabled&#x27;);
+  }
+  busy = false;
+}
+</code></pre></details><p id="copy-msg" role="status" aria-live="polite"></p></section>
+<section><h2>05. 실행 순서와 확인 결과</h2><ol><li>배선도대로 LED와 저항을 연결한다.</li><li>Arduino IDE에서 보드를 Uno로 선택하고 INO 코드를 업로드한다.</li><li>IDE의 시리얼 모니터와 플로터를 닫는다.</li><li>Chrome 또는 Edge에서 <a href="https://editor.p5js.org/">p5.js 웹 에디터</a>를 열고 코드를 붙여 넣은 뒤 ▶를 누른다.</li><li>‘아두이노 연결’을 누르고 연결된 Uno의 USB 포트를 선택한다.</li><li>슬라이더를 움직여 LED를 확인한다. 다시 업로드할 때는 p5 실행을 먼저 정지한다.</li></ol><div class="facts"><div><strong>2,210 B</strong><span>프로그램 저장 공간 · 6%</span></div><div><strong>193 B</strong><span>전역 변수 메모리 · 9%</span></div><div><strong>0 → 255</strong><span>보드 수신값 왕복 확인</span></div></div><p>Uno 기준 컴파일·업로드를 완료했다. 0, 64, 128, 192, 255, 0을 차례로 보내고 같은 값이 돌아오는 것을 확인했다. 이는 통신 검사 결과이며 실제 빛의 변화는 시연 영상으로 확인한다.</p></section>
+<section id="review"><h2>06. 고찰</h2><p>처음에는 슬라이더가 움직여도 LED 밝기가 바뀌지 않았다. 화면에서 값이 바뀌는 것과 아두이노가 그 값을 받아서 출력하는 것은 별개이므로, USB 연결과 보드에 업로드한 코드를 함께 확인했다. D13은 하드웨어 PWM 핀이 아니어서 소프트웨어 PWM으로 구현했다. 이후 0, 64, 128, 192, 255 값을 보내고 같은 값이 돌아오는지 검사해 통신을 확인했다. 이번 실습을 통해 핀의 기능, 통신 속도, 전송 형식을 맞추는 것이 중요하다는 점을 확인했다. 더 일정한 PWM 파형이 필요하다면 하드웨어 PWM을 지원하는 핀을 사용하는 방법도 있다.</p></section>
+<footer>참고: <a href="https://support.arduino.cc/hc/en-us/articles/9350537961500-Use-PWM-output-with-Arduino">Arduino PWM 안내</a> · <a href="https://p5js.org/reference/p5/createSlider/">p5 createSlider</a> · <a href="https://developer.chrome.com/docs/capabilities/serial">Web Serial</a></footer></main><script>document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{const m=document.getElementById('copy-msg');try{await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent);m.textContent='코드를 복사했습니다.'}catch(e){m.textContent='복사가 차단되었습니다. 코드 영역을 펼쳐 직접 복사해주세요.'}}));</script></body></html>
